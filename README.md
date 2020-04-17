@@ -24,11 +24,11 @@ end
 then once you have done that, you can get information on the current state of the key in 3 ways:
 
 ```lua
-LoveKeys.up.Clicked
+LoveKeys.up.Pressed
 -- or
-LoveKeys["space"].UnClicked
+LoveKeys["space"].Released
 -- or
-LoveKeys.Get("s").Active
+LoveKeys.Get("s").Held
 ```
 
 in your love.update you should add LoveKeys.update to the end of it

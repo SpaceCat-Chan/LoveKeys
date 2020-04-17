@@ -10,39 +10,40 @@ function love.load()
 	LoveKeys.RegisterKey("down")
 	LoveKeys.RegisterKey("left")
 	LoveKeys.RegisterKey("right")
+	
 	LoveKeys.RegisterKey("s")
 	LoveKeys.SetRepeatInfo("s", 2, 1)
 end
 
 function love.update(dt)
 
-	if LoveKeys.up.Clicked then
+	if LoveKeys.up.Pressed then
 		Speed.x = 0
 		Speed.y = -1
 	end
-	if LoveKeys.down.Clicked then
+	if LoveKeys.down.Pressed then
 		Speed.x = 0
 		Speed.y = 1
 	end
-	if LoveKeys.left.Clicked then
+	if LoveKeys.left.Pressed then
 		Speed.x = -1
 		Speed.y = 0
 	end
-	if LoveKeys.right.Clicked then
+	if LoveKeys.right.Pressed then
 		Speed.x = 1
 		Speed.y = 0
 	end
 
-	if LoveKeys.up.UnClicked and Speed.x == 0 and Speed.y == -1 then
+	if LoveKeys.up.Released and Speed.x == 0 and Speed.y == -1 then
 		Speed.y = 0
 	end
-	if LoveKeys.down.UnClicked and Speed.x == 0 and Speed.y == 1 then
+	if LoveKeys.down.Released and Speed.x == 0 and Speed.y == 1 then
 		Speed.y = 0
 	end
-	if LoveKeys.left.UnClicked and Speed.x == -1 and Speed.y == 0 then
+	if LoveKeys.left.Released and Speed.x == -1 and Speed.y == 0 then
 		Speed.x = 0
 	end
-	if LoveKeys.right.UnClicked and Speed.x == 1 and Speed.y == 0 then
+	if LoveKeys.right.Released and Speed.x == 1 and Speed.y == 0 then
 		Speed.x = 0
 	end
 

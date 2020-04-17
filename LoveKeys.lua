@@ -1,7 +1,7 @@
 --- @class KeyInfo
---- @field public Clicked boolean @if the button was clicked this update cycle
---- @field public UnClicked boolean @if the button was let go of this update cycle
---- @field public Active boolean @if button is being held down
+--- @field public Pressed boolean @if the button was clicked this update cycle
+--- @field public Released boolean @if the button was let go of this update cycle
+--- @field public Held boolean @if button is being held down
 --- @field public PressLength number @how long the button has been pressed for
 --- @field private RepeatLength number @internal thing, don't touch
 --- @field public Repeating boolean @if the button has begun repeating Clicks
@@ -27,9 +27,9 @@ KeysTable.Get = function(Key)
 		return nil, "Unkown Key"
 	end
 	return {
-		Clicked = KeysTable.KeyInfo[Key].Clicked,
-		UnClicked = KeysTable.KeyInfo[Key].UnClicked,
-		Active = KeysTable.KeyInfo[Key].Active,
+		Pressed = KeysTable.KeyInfo[Key].Pressed,
+		Released = KeysTable.KeyInfo[Key].Released,
+		Held = KeysTable.KeyInfo[Key].Held,
 		PressLength = KeysTable.KeyInfo[Key].PressLength,
 		RepeatLength = 0, -- nice try getting info out from here
 		Repeating = KeysTable.KeyInfo[Key].Repeating,
@@ -44,21 +44,21 @@ end
 --- @param dt number @the amount of time since the last call to this function
 KeysTable.update = function(dt)
 	for k,KeyInfo in pairs(KeysTable.KeyInfo) do
-		if KeyInfo.Active then
+		if KeyInfo.Held then
 			KeyInfo.PressLength = KeyInfo.PressLength + dt
 			KeyInfo.RepeatLength = KeyInfo.RepeatLength + dt
 			if KeyInfo.RepeatLength > KeyInfo.Repeat.Delay and KeyInfo.Repeat.Delay ~= 0 and KeyInfo.Repeat.Repeat ~= 0 then
-				KeyInfo.Clicked = true
+				KeyInfo.Pressed = true
 				KeyInfo.Repeating = true
 				KeyInfo.RepeatLength = KeyInfo.RepeatLength - KeyInfo.Repeat.Repeat
 				if KeysTable.Event.keypressed then
 					KeysTable.Event.keypressed(k, KeysTable.Get(k))
 				end
 			else
-				KeyInfo.Clicked = false
+				KeyInfo.Pressed = false
 			end
 		end
-		KeyInfo.UnClicked = false
+		KeyInfo.Released = false
 	end
 end
 
@@ -67,9 +67,9 @@ end
 KeysTable.keypressed = function(Key)
 	if KeysTable.KeyInfo[Key] == nil then
 		KeysTable.KeyInfo[Key] = {
-			Clicked = true,
-			UnClicked = false,
-			Active = true,
+			Pressed = true,
+			Released = false,
+			Held = true,
 			PressLength = 0,
 			RepeatLength = 0,
 			Repeating = false,
@@ -79,9 +79,9 @@ KeysTable.keypressed = function(Key)
 			}
 		}
 	else
-		KeysTable.KeyInfo[Key].Clicked = true
-		KeysTable.KeyInfo[Key].UnClicked = false
-		KeysTable.KeyInfo[Key].Active = true
+		KeysTable.KeyInfo[Key].Pressed = true
+		KeysTable.KeyInfo[Key].Released = false
+		KeysTable.KeyInfo[Key].Held = true
 		KeysTable.KeyInfo[Key].PressLength = 0
 		KeysTable.KeyInfo[Key].RepeatLength = 0
 		KeysTable.KeyInfo[Key].Repeating = false
@@ -99,9 +99,9 @@ KeysTable.keyreleased = function(Key)
 	end
 	if KeysTable.KeyInfo[Key] == nil then
 		KeysTable.KeyInfo[Key] = {
-			Clicked = false,
-			UnClicked = true,
-			Active = false,
+			Pressed = false,
+			Released = true,
+			Held = false,
 			PressLength = 0,
 			RepeatLength = 0,
 			Repeating = false,
@@ -111,9 +111,9 @@ KeysTable.keyreleased = function(Key)
 			}
 		}
 	else
-		KeysTable.KeyInfo[Key].Clicked = false
-		KeysTable.KeyInfo[Key].UnClicked = true
-		KeysTable.KeyInfo[Key].Active = false
+		KeysTable.KeyInfo[Key].Pressed = false
+		KeysTable.KeyInfo[Key].Released = true
+		KeysTable.KeyInfo[Key].Held = false
 		KeysTable.KeyInfo[Key].PressLength = 0
 		KeysTable.KeyInfo[Key].RepeatLength = 0
 		KeysTable.KeyInfo[Key].Repeating = false
@@ -124,9 +124,9 @@ end
 KeysTable.RegisterKey = function(Key)
 	if KeysTable.KeyInfo[Key] == nil then
 		KeysTable.KeyInfo[Key] = {
-			Clicked = false,
-			UnClicked = false,
-			Active = false,
+			Pressed = false,
+			Released = false,
+			Held = false,
 			PressLength = 0,
 			RepeatLength = 0,
 			Repeating = false,
