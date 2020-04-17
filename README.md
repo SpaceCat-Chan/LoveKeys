@@ -85,7 +85,7 @@ using LoveKeys.SetRepeatInfo() it is possible to tell the library how you want a
 LoveKeys.SetRepeatInfo("space", 2, 1)
 ```
 
-the above code will make it so that once the space key has been held for 2 seconds, it will act as if it was pressed again, then again one second later it will do it again
+the above code will make it so that once the space key has been held for 2 seconds, it will act as if it was pressed again, then again one second later it will do it again and it will keep doing it every second until the space key is released
 
 the first argument is the delay and the second is the repeat, they can be found in `<KeyInfo>.Repeat.Delay` and `<KeyInfo>.Repeat.Repeat` respectivly
 
