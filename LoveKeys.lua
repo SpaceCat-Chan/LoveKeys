@@ -4,6 +4,9 @@
 --- @field public Held boolean @if button is being held down
 --- @field public PressLength number @how long the button has been pressed for
 --- @field private RepeatLength number @internal thing, don't touch
+--- @field private AliasTo string[] @list of keys that this key is aliased to
+--- @field private AliasFrom string[] @list of keys that alias to this key
+--- @field private AliasType string @how aliases to this key should be handled
 --- @field public Repeating boolean @if the button has begun repeating Clicks
 --- @field public Repeat RepeatInfo @info about how the button repeats
 local NothingSpecialHereJustADummy
@@ -21,17 +24,16 @@ local KeysTable = {
 }
 
 --- @param Key string @the key that you want info about
---- @return KeyInfo|nil !string @the requsted info or nil with an extra that contains error info
+--- @return KeyInfo @the requsted info about the key
 KeysTable.Get = function(Key)
 	if KeysTable.KeyInfo[Key] == nil then
-		return nil, "Unkown Key"
+		LoveKeys.RegisterKey(Key)
 	end
 	return {
 		Pressed = KeysTable.KeyInfo[Key].Pressed,
 		Released = KeysTable.KeyInfo[Key].Released,
 		Held = KeysTable.KeyInfo[Key].Held,
 		PressLength = KeysTable.KeyInfo[Key].PressLength,
-		RepeatLength = 0, -- nice try getting info out from here
 		Repeating = KeysTable.KeyInfo[Key].Repeating,
 		Repeat = {
 			Delay = KeysTable.KeyInfo[Key].Repeat.Delay,
@@ -44,6 +46,22 @@ end
 --- @param dt number @the amount of time since the last call to this function
 KeysTable.update = function(dt)
 	for k,KeyInfo in pairs(KeysTable.KeyInfo) do
+		-- alias handeling
+		if #KeyInfo.AliasFrom ~= 0 then
+			local RunningResult
+			for _,Key in pairs(KeyInfo.AliasFrom) do
+				if KeyInfo.AliasType == "and" or KeyInfo.AliasType == "nand" then
+					if (RunningResult or true) and KeysTable.KeyInfo[Key].Held then
+						RunningResult = true
+					else
+						RunningResult = false
+						break
+					end
+				end
+			end
+		end
+
+		-- general other things handeling
 		if KeyInfo.Held then
 			KeyInfo.PressLength = KeyInfo.PressLength + dt
 			KeyInfo.RepeatLength = KeyInfo.RepeatLength + dt
@@ -66,18 +84,9 @@ end
 --- @param Key string @the name of key that was pressed
 KeysTable.keypressed = function(Key)
 	if KeysTable.KeyInfo[Key] == nil then
-		KeysTable.KeyInfo[Key] = {
-			Pressed = true,
-			Released = false,
-			Held = true,
-			PressLength = 0,
-			RepeatLength = 0,
-			Repeating = false,
-			Repeat = {
-				Delay = 0,
-				Repeat = 0
-			}
-		}
+		LoveKeys.RegisterKey(Key)
+		KeysTable.KeyInfo[Key].Pressed = true
+		KeysTable.KeyInfo[Key].Held = true
 	else
 		KeysTable.KeyInfo[Key].Pressed = true
 		KeysTable.KeyInfo[Key].Released = false
@@ -98,18 +107,8 @@ KeysTable.keyreleased = function(Key)
 		KeysTable.Event.keyreleased(Key, KeysTable.Get(Key))
 	end
 	if KeysTable.KeyInfo[Key] == nil then
-		KeysTable.KeyInfo[Key] = {
-			Pressed = false,
-			Released = true,
-			Held = false,
-			PressLength = 0,
-			RepeatLength = 0,
-			Repeating = false,
-			Repeat = {
-				Delay = 0,
-				Repeat = 0
-			}
-		}
+		LoveKeys.RegisterKey(Key)
+		KeysTable.KeyInfo[Key].Released = true
 	else
 		KeysTable.KeyInfo[Key].Pressed = false
 		KeysTable.KeyInfo[Key].Released = true
@@ -130,6 +129,9 @@ KeysTable.RegisterKey = function(Key)
 			PressLength = 0,
 			RepeatLength = 0,
 			Repeating = false,
+			AliasTo = {},
+			AliasFrom = {},
+			AliasType = "or",
 			Repeat = {
 				Delay = 0,
 				Repeat = 0
@@ -138,16 +140,42 @@ KeysTable.RegisterKey = function(Key)
 	end
 end
 
+--- @param From string[]|string @a list of keys to alias from
+--- @param To string[]|string @a list of keys to alias to
+--- @param Type string|nil @the type of aliasing that should be created, supported things are: or, nor, and, nand
+--- @return nil
+KeysTable.Alias = function(From, To, Type)
+	Type = Type or "or"
+	if type(From) == "string" then
+		From = {From}
+	end
+	if type(To) == "string" then
+		To = {To}
+	end
+	for _,Key in pairs(From) do
+		if LoveKeys.KeyInfo[Key] == nil then
+			LoveKeys.RegisterKey(Key)
+		end
+		KeysTable.KeyInfo[Key].AliasTo = To
+	end
+	for _,Key in pairs(To) do
+		if LoveKeys.KeyInfo[Key] == nil then
+			LoveKeys.RegisterKey(Key)
+		end
+		KeysTable.KeyInfo[Key].AliasFrom = From
+		KeysTable.KeyInfo[Key].AliasType = Type
+	end
+end
+
 --- @param Key string @the name of the key to change
 --- @param Delay number @the number to set the keys delay to
 --- @param Repeat number @the number to set the keys repeat to
---- @return boolean !string @boolean true for success, string for optianal error message
+--- @return nil
 KeysTable.SetRepeatInfo = function(Key, Delay, Repeat)
 	if KeysTable.KeyInfo[Key] == nil then
-		return false, "Unknown Key"
+		KeysTable.RegisterKey(Key)
 	end
 	KeysTable.KeyInfo[Key].Repeat = {Delay = Delay, Repeat = Repeat}
-	return true
 end
 
 setmetatable(KeysTable, {__index = function(_, Key)
@@ -155,7 +183,6 @@ setmetatable(KeysTable, {__index = function(_, Key)
 end})
 
 GLOBAL_SET_LOVE_KEYS = GLOBAL_SET_LOVE_KEYS or false
-love = love or nil
 if GLOBAL_SET_LOVE_KEYS then
 	love.keypressed = function(Key)
 		KeysTable.keypressed(Key)
