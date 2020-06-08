@@ -47,6 +47,8 @@ end
 KeysTable.update = function(dt)
 	for k,KeyInfo in pairs(KeysTable.KeyInfo) do
 		-- alias handeling
+		local ToAliasPress
+		local ToAliasUnpress
 		if #KeyInfo.AliasFrom ~= 0 then
 			local RunningResult
 			for _,Key in pairs(KeyInfo.AliasFrom) do
@@ -58,11 +60,30 @@ KeysTable.update = function(dt)
 						break
 					end
 				end
+				if KeyInfo.AliasType == "or" or KeyInfo.AliasType == "nor" then
+					if(RunningResult or false) or KeysTable.KeyInfo[Key].Held then
+						RunningResult = true
+					else
+						RunningResult = false
+					end
+				end
+			end
+			if KeyInfo.AliasType == "nor" or KeyInfo.AliasType == "nand" then
+				RunningResult = not RunningResult
+			end
+			if RunningResult then
+				if KeyInfo.Held == false then
+					ToAliasPress = true
+				end
+			else
+				if KeyInfo.Held == true then
+					ToAliasUnpress = true
+				end
 			end
 		end
 
 		-- general other things handeling
-		if KeyInfo.Held then
+		if KeyInfo.Held and not ToAliasPress and not ToAliasUnpress then
 			KeyInfo.PressLength = KeyInfo.PressLength + dt
 			KeyInfo.RepeatLength = KeyInfo.RepeatLength + dt
 			if KeyInfo.RepeatLength > KeyInfo.Repeat.Delay and KeyInfo.Repeat.Delay ~= 0 and KeyInfo.Repeat.Repeat ~= 0 then
@@ -77,6 +98,13 @@ KeysTable.update = function(dt)
 			end
 		end
 		KeyInfo.Released = false
+
+		if ToAliasPress then
+			KeysTable.keypressed(k)
+		end
+		if ToAliasUnpress then
+			KeysTable.keyreleased(k)
+		end
 	end
 end
 

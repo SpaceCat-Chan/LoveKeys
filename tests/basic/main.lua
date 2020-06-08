@@ -1,3 +1,10 @@
+local OutFile = io.open("out.txt", "w")
+
+function print(...) --default print doesnt want to work on my pc
+	OutFile:write(...)
+	OutFile:write("\n")
+end
+
 package.path = "../../?.lua;"..package.path -- only needed because the library is outside this folder
 GLOBAL_SET_LOVE_KEYS = true
 LoveKeys = require("LoveKeys")
