@@ -18,6 +18,7 @@ function love.load()
 	LoveKeys.RegisterKey("up")
 	LoveKeys.RegisterKey("space")
 	LoveKeys.RegisterKey("s")
+	LoveKeys.RegisterKey("Jump") --you don't need to use actual keys, to see more check out the aliasing section
 end
 ```
 
@@ -90,3 +91,32 @@ the above code will make it so that once the space key has been held for 2 secon
 the first argument is the delay and the second is the repeat, they can be found in `<KeyInfo>.Repeat.Delay` and `<KeyInfo>.Repeat.Repeat` respectivly
 
 when a key is repeating it is possible to tell that it is by checking `<KeyInfo>.Repeating`
+
+
+## Aliasing
+
+Aliasing allows you to combine multiple keys into one name 
+it is especially useful if you want your users to be able to change keybinds 
+
+a basic example of how to create a keybind goes like this: 
+
+```lua
+function love.load()
+	LoveKeys.Alias({"w", "up"}, "MoveUp")
+end
+```
+
+with the above Alias, MoveUp will be pressed if w __or__ up is pressed
+
+both the first and second argument can be tables or strings interchangably
+
+&nbsp;
+
+there is an optional third argument which specifies how the keys interact.  
+the allowed arguments are: `or, and, nor, nand`, the default is `or` 
+
+`or` means that if any of the input keys are pressed, the output keys are pressed  
+`and` means that all the input keys must be pressed before the output gets pressed.  
+`nor` and `nand` are inverses of `or` and `and` respectively.
+
+an example can be found in tests/alias/
