@@ -95,7 +95,7 @@ when a key is repeating it is possible to tell that it is by checking `<KeyInfo>
 
 ## Aliasing
 
-Aliasing allows you to combine multiple keys into one name 
+Aliasing allows you to combine multiple keys into one name  
 it is especially useful if you want your users to be able to change keybinds 
 
 a basic example of how to create a keybind goes like this: 
