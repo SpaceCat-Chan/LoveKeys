@@ -4,9 +4,7 @@
 --- @field public Held boolean @if button is being held down
 --- @field public PressLength number @how long the button has been pressed for
 --- @field private RepeatLength number @internal thing, don't touch
---- @field private AliasTo string[] @list of keys that this key is aliased to
---- @field private AliasFrom string[] @list of keys that alias to this key
---- @field private AliasType string @how aliases to this key should be handled
+--- @field public Alias table<string, AliasInfo> @info about current alias settings
 --- @field public Repeating boolean @if the button has begun repeating Clicks
 --- @field public Repeat RepeatInfo @info about how the button repeats
 local NothingSpecialHereJustADummy
@@ -16,11 +14,19 @@ local NothingSpecialHereJustADummy
 --- @field public Repeat number how long between each repeat
 local OnceAgainAnotherDummyType____AAAAAAAAAA
 
+--- @class AliasInfo
+--- @field public From string[]
+--- @field public To string[]
+--- @field public Type string @allowed to be: or, and, nor, nand
+local Finally_AnotherDummyType_ItHasBeenSoLongSinceILastAddedOne
+
 local KeysTable = {
 	--- @type table<string, KeyInfo>
 	KeyInfo = {},
 	--- @type table<string, fun(KeyName:string,Key:KeyInfo):nil>
-	Event =  {}
+	Event =  {},
+	--- @type string
+	CurrentAliasNamespace = "default"
 }
 
 local function SimpleCopy(table)
@@ -46,9 +52,7 @@ KeysTable.Get = function(Key)
 		Held = KeysTable.KeyInfo[Key].Held,
 		PressLength = KeysTable.KeyInfo[Key].PressLength,
 		Repeating = KeysTable.KeyInfo[Key].Repeating,
-		AliasTo = SimpleCopy(KeysTable.KeyInfo[Key].AliasTo),
-		AliasFrom = SimpleCopy(KeysTable.KeyInfo[Key].AliasFrom),
-		AliasType = KeysTable.KeyInfo[Key].AliasType,
+		Alias = SimpleCopy(KeysTable.KeyInfo[Key].Alias),
 		Repeat = {
 			Delay = KeysTable.KeyInfo[Key].Repeat.Delay,
 			Repeat = KeysTable.KeyInfo[Key].Repeat.Repeat
@@ -59,10 +63,11 @@ end
 KeysTable.GetSingleKeyAliasUpdateInfo = function(KeyInfo)
 	local ToAliasPress
 	local ToAliasUnpress
-	if #KeyInfo.AliasFrom ~= 0 then
+	local KeyAlias = KeyInfo.Alias[KeysTable.CurrentAliasNamespace]
+	if KeyAlias and #KeyAlias.From ~= 0 then
 		local RunningResult
-		for _,Key in pairs(KeyInfo.AliasFrom) do
-			if KeyInfo.AliasType == "and" or KeyInfo.AliasType == "nand" then
+		for _,Key in pairs(KeyAlias.From) do
+			if KeyAlias.Type == "and" or KeyAlias.Type == "nand" then
 				if (RunningResult or true) and KeysTable.KeyInfo[Key].Held then
 					RunningResult = true
 				else
@@ -70,7 +75,7 @@ KeysTable.GetSingleKeyAliasUpdateInfo = function(KeyInfo)
 					break
 				end
 			end
-			if KeyInfo.AliasType == "or" or KeyInfo.AliasType == "nor" then
+			if KeyAlias.Type == "or" or KeyAlias.Type == "nor" then
 				if(RunningResult or false) or KeysTable.KeyInfo[Key].Held then
 					RunningResult = true
 				else
@@ -78,7 +83,7 @@ KeysTable.GetSingleKeyAliasUpdateInfo = function(KeyInfo)
 				end
 			end
 		end
-		if KeyInfo.AliasType == "nor" or KeyInfo.AliasType == "nand" then
+		if KeyAlias.Type == "nor" or KeyAlias.Type == "nand" then
 			RunningResult = not RunningResult
 		end
 		if RunningResult then
@@ -197,9 +202,7 @@ KeysTable.RegisterKey = function(Key)
 			PressLength = 0,
 			RepeatLength = 0,
 			Repeating = false,
-			AliasTo = {},
-			AliasFrom = {},
-			AliasType = "or",
+			Alias = {},
 			Repeat = {
 				Delay = 0,
 				Repeat = 0
@@ -208,12 +211,25 @@ KeysTable.RegisterKey = function(Key)
 	end
 end
 
+local function SetupAlias(KeyName, Namespace)
+	Namespace = Namespace or KeysTable.CurrentAliasNamespace
+	if KeysTable.KeyInfo[KeyName].Alias[Namespace] == nil then
+		local KeyAlias = KeysTable.KeyInfo[KeyName].Alias
+		KeyAlias[Namespace] = {
+			From = {},
+			To = {},
+			Type = "or"
+		}
+	end
+end
+
 --- @param From string[]|string @a list of keys to alias from
 --- @param To string[]|string @a list of keys to alias to
 --- @param Type string|nil @the type of aliasing that should be created, supported things are: or, nor, and, nand
 --- @return nil
-KeysTable.Alias = function(From, To, Type)
+KeysTable.Alias = function(From, To, Type, Namespace)
 	Type = Type or "or"
+	Namespace = Namespace or KeysTable.CurrentAliasNamespace
 	if type(From) ~= "table" then
 		From = {From}
 	end
@@ -224,10 +240,11 @@ KeysTable.Alias = function(From, To, Type)
 		if LoveKeys.KeyInfo[Key] == nil then
 			LoveKeys.RegisterKey(Key)
 		end
+		SetupAlias(Key, Namespace)
 		local ToAdd = {}
 		for _,FindKey in pairs(To) do
 			local Found=false
-			for _,CheckKey in pairs(KeysTable.KeyInfo[Key].AliasTo) do
+			for _,CheckKey in pairs(KeysTable.KeyInfo[Key].Alias[Namespace].To) do
 				if CheckKey == FindKey then
 					Found = true
 					break
@@ -238,15 +255,16 @@ KeysTable.Alias = function(From, To, Type)
 			end
 		end
 		for _,v in pairs(ToAdd) do --don't have table.move, this is good enough
-			table.insert(KeysTable.KeyInfo[Key].AliasTo, v)
+			table.insert(KeysTable.KeyInfo[Key].Alias[Namespace].To, v)
 		end
 	end
-	for KeyName,Key in pairs(To) do
+	for _,Key in pairs(To) do
 		if LoveKeys.KeyInfo[Key] == nil then
 			LoveKeys.RegisterKey(Key)
 		end
+		SetupAlias(Key, Namespace)
 		local ToRemoveFrom = {}
-		for _,FindKey in pairs(KeysTable.KeyInfo[Key].AliasFrom) do
+		for _,FindKey in pairs(KeysTable.KeyInfo[Key].Alias[Namespace].From) do
 			local Found = false
 			for _,CheckKey in pairs(From) do
 				if FindKey == CheckKey then
@@ -259,18 +277,23 @@ KeysTable.Alias = function(From, To, Type)
 			end
 		end
 		for _,KeyRemoveFrom in pairs(ToRemoveFrom) do
-			for Index,RemoveCandidate in pairs(KeysTable.KeyInfo[KeyRemoveFrom].AliasTo) do
+			for Index,RemoveCandidate in pairs(KeysTable.KeyInfo[KeyRemoveFrom].Alias[Namespace].To) do
 				if RemoveCandidate == Key then
-					KeysTable.KeyInfo[KeyRemoveFrom].AliasTo[Index] = nil
+					KeysTable.KeyInfo[KeyRemoveFrom].Alias[Namespace].To[Index] = nil
 					break
 				end
 			end
 		end
-		KeysTable.KeyInfo[Key].AliasFrom = From
-		KeysTable.KeyInfo[Key].AliasType = Type
+		KeysTable.KeyInfo[Key].Alias[Namespace].From = From
+		KeysTable.KeyInfo[Key].Alias[Namespace].Type = Type
 		local ToAliasPress, ToAliasUnpress = KeysTable.GetSingleKeyAliasUpdateInfo(KeysTable.KeyInfo[Key])
 		KeysTable.ExecuteAliasKeyUpdate(Key, ToAliasPress, ToAliasUnpress)
 	end
+end
+
+KeysTable.SetAliasNamespace = function(Namespace)
+	KeysTable.CurrentAliasNamespace = Namespace
+	KeysTable.AliasUpdate()
 end
 
 --- @param Key string @the name of the key to change
