@@ -26,6 +26,7 @@ function love.load()
 end
 
 function love.update(dt)
+	LoveKeys.AliasUpdate()
 
     if LoveKeys.MoveUp.Pressed then
 		Speed.x = 0
@@ -60,7 +61,7 @@ function love.update(dt)
 	Position.x = Position.x + Speed.x * 100 * dt
 	Position.y = Position.y + Speed.y * 100 * dt
 
-	LoveKeys.update(dt)
+	LoveKeys.TimingUpdate(dt)
 end
 
 function love.draw()

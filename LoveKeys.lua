@@ -23,6 +23,17 @@ local KeysTable = {
 	Event =  {}
 }
 
+local function SimpleCopy(table)
+	if type(table) == "table" then
+		local NewTable = {}
+		for k,v in pairs(table) do
+			NewTable[k] = SimpleCopy(v)
+		end
+		return NewTable
+	end
+	return table
+end
+
 --- @param Key string @the key that you want info about
 --- @return KeyInfo @the requsted info about the key
 KeysTable.Get = function(Key)
@@ -35,6 +46,9 @@ KeysTable.Get = function(Key)
 		Held = KeysTable.KeyInfo[Key].Held,
 		PressLength = KeysTable.KeyInfo[Key].PressLength,
 		Repeating = KeysTable.KeyInfo[Key].Repeating,
+		AliasTo = SimpleCopy(KeysTable.KeyInfo[Key].AliasTo),
+		AliasFrom = SimpleCopy(KeysTable.KeyInfo[Key].AliasFrom),
+		AliasType = KeysTable.KeyInfo[Key].AliasType,
 		Repeat = {
 			Delay = KeysTable.KeyInfo[Key].Repeat.Delay,
 			Repeat = KeysTable.KeyInfo[Key].Repeat.Repeat
@@ -42,69 +56,95 @@ KeysTable.Get = function(Key)
 	}
 end
 
+KeysTable.GetSingleKeyAliasUpdateInfo = function(KeyInfo)
+	local ToAliasPress
+	local ToAliasUnpress
+	if #KeyInfo.AliasFrom ~= 0 then
+		local RunningResult
+		for _,Key in pairs(KeyInfo.AliasFrom) do
+			if KeyInfo.AliasType == "and" or KeyInfo.AliasType == "nand" then
+				if (RunningResult or true) and KeysTable.KeyInfo[Key].Held then
+					RunningResult = true
+				else
+					RunningResult = false
+					break
+				end
+			end
+			if KeyInfo.AliasType == "or" or KeyInfo.AliasType == "nor" then
+				if(RunningResult or false) or KeysTable.KeyInfo[Key].Held then
+					RunningResult = true
+				else
+					RunningResult = false
+				end
+			end
+		end
+		if KeyInfo.AliasType == "nor" or KeyInfo.AliasType == "nand" then
+			RunningResult = not RunningResult
+		end
+		if RunningResult then
+			if KeyInfo.Held == false then
+				ToAliasPress = true
+			end
+		else
+			if KeyInfo.Held == true then
+				ToAliasUnpress = true
+			end
+		end
+	end
+	return ToAliasPress, ToAliasUnpress
+end
+
+KeysTable.ExecuteAliasKeyUpdate = function(k, ToAliasPress, ToAliasUnpress)
+	if ToAliasPress then
+		KeysTable.keypressed(k)
+	end
+	if ToAliasUnpress then
+		KeysTable.keyreleased(k)
+	end
+end
+
+KeysTable.SingleKeyTimingUpdate = function(dt, k, KeyInfo, Suppress)
+	if KeyInfo.Held and not Suppress then
+		KeyInfo.PressLength = KeyInfo.PressLength + dt
+		KeyInfo.RepeatLength = KeyInfo.RepeatLength + dt
+		if KeyInfo.RepeatLength > KeyInfo.Repeat.Delay and KeyInfo.Repeat.Delay ~= 0 and KeyInfo.Repeat.Repeat ~= 0 then
+			KeyInfo.Pressed = true
+			KeyInfo.Repeating = true
+			KeyInfo.RepeatLength = KeyInfo.RepeatLength - KeyInfo.Repeat.Repeat
+			if KeysTable.Event.keypressed then
+				KeysTable.Event.keypressed(k, KeysTable.Get(k))
+			end
+		else
+			KeyInfo.Pressed = false
+		end
+	end
+	KeyInfo.Released = false
+end
+
+KeysTable.TimingUpdate = function(dt)
+	for k,KeyInfo in pairs(KeysTable.KeyInfo) do
+		KeysTable.SingleKeyTimingUpdate(dt, k, KeyInfo, false)
+	end
+end
+
+KeysTable.AliasUpdate = function()
+	for k,KeyInfo in pairs(KeysTable.KeyInfo) do
+		local ToAliasPress, ToAliasUnpress = KeysTable.GetSingleKeyAliasUpdateInfo(KeyInfo)
+		KeysTable.ExecuteAliasKeyUpdate(k, ToAliasPress, ToAliasUnpress)
+	end
+end
+
 -- this function should be called at the end of the love.update function
 --- @param dt number @the amount of time since the last call to this function
 KeysTable.update = function(dt)
 	for k,KeyInfo in pairs(KeysTable.KeyInfo) do
 		-- alias handeling
-		local ToAliasPress
-		local ToAliasUnpress
-		if #KeyInfo.AliasFrom ~= 0 then
-			local RunningResult
-			for _,Key in pairs(KeyInfo.AliasFrom) do
-				if KeyInfo.AliasType == "and" or KeyInfo.AliasType == "nand" then
-					if (RunningResult or true) and KeysTable.KeyInfo[Key].Held then
-						RunningResult = true
-					else
-						RunningResult = false
-						break
-					end
-				end
-				if KeyInfo.AliasType == "or" or KeyInfo.AliasType == "nor" then
-					if(RunningResult or false) or KeysTable.KeyInfo[Key].Held then
-						RunningResult = true
-					else
-						RunningResult = false
-					end
-				end
-			end
-			if KeyInfo.AliasType == "nor" or KeyInfo.AliasType == "nand" then
-				RunningResult = not RunningResult
-			end
-			if RunningResult then
-				if KeyInfo.Held == false then
-					ToAliasPress = true
-				end
-			else
-				if KeyInfo.Held == true then
-					ToAliasUnpress = true
-				end
-			end
-		end
+		local ToAliasPress, ToAliasUnpress = KeysTable.GetSingleKeyAliasUpdateInfo(KeyInfo)
 
 		-- general other things handeling
-		if KeyInfo.Held and not ToAliasPress and not ToAliasUnpress then
-			KeyInfo.PressLength = KeyInfo.PressLength + dt
-			KeyInfo.RepeatLength = KeyInfo.RepeatLength + dt
-			if KeyInfo.RepeatLength > KeyInfo.Repeat.Delay and KeyInfo.Repeat.Delay ~= 0 and KeyInfo.Repeat.Repeat ~= 0 then
-				KeyInfo.Pressed = true
-				KeyInfo.Repeating = true
-				KeyInfo.RepeatLength = KeyInfo.RepeatLength - KeyInfo.Repeat.Repeat
-				if KeysTable.Event.keypressed then
-					KeysTable.Event.keypressed(k, KeysTable.Get(k))
-				end
-			else
-				KeyInfo.Pressed = false
-			end
-		end
-		KeyInfo.Released = false
+		KeysTable.SingleKeyTimingUpdate(dt, k, KeyInfo, ToAliasPress or ToAliasUnpress)
 
-		if ToAliasPress then
-			KeysTable.keypressed(k)
-		end
-		if ToAliasUnpress then
-			KeysTable.keyreleased(k)
-		end
+		KeysTable.ExecuteAliasKeyUpdate(k, ToAliasPress, ToAliasUnpress)
 	end
 end
 
@@ -174,21 +214,57 @@ end
 --- @return nil
 KeysTable.Alias = function(From, To, Type)
 	Type = Type or "or"
-	if type(From) == "string" then
+	if type(From) ~= "table" then
 		From = {From}
 	end
-	if type(To) == "string" then
+	if type(To) ~= "table" then
 		To = {To}
 	end
 	for _,Key in pairs(From) do
 		if LoveKeys.KeyInfo[Key] == nil then
 			LoveKeys.RegisterKey(Key)
 		end
-		KeysTable.KeyInfo[Key].AliasTo = To
+		local ToAdd = {}
+		for _,FindKey in pairs(To) do
+			local Found=false
+			for _,CheckKey in pairs(KeysTable.KeyInfo[Key].AliasTo) do
+				if CheckKey == FindKey then
+					Found = true
+					break
+				end
+			end
+			if not Found then
+				table.insert(ToAdd, FindKey)
+			end
+		end
+		for _,v in pairs(ToAdd) do --don't have table.move, this is good enough
+			table.insert(KeysTable.KeyInfo[Key].AliasTo, v)
+		end
 	end
 	for _,Key in pairs(To) do
 		if LoveKeys.KeyInfo[Key] == nil then
 			LoveKeys.RegisterKey(Key)
+		end
+		local ToRemoveFrom = {}
+		for _,FindKey in pairs(KeysTable.KeyInfo[Key].AliasFrom) do
+			local Found = false
+			for _,CheckKey in pairs(From) do
+				if FindKey == CheckKey then
+					Found = true
+					break
+				end
+			end
+			if not Found then
+				table.insert(ToRemoveFrom, FindKey)
+			end
+		end
+		for _,KeyRemoveFrom in pairs(ToRemoveFrom) do
+			for Index,RemoveCandidate in pairs(KeysTable.KeyInfo[KeyRemoveFrom].AliasTo) do
+				if RemoveCandidate == Key then
+					KeysTable.KeyInfo[KeyRemoveFrom].AliasTo[Index] = nil
+					break
+				end
+			end
 		end
 		KeysTable.KeyInfo[Key].AliasFrom = From
 		KeysTable.KeyInfo[Key].AliasType = Type
