@@ -120,3 +120,51 @@ the allowed arguments are: `or, and, nor, nand`, the default is `or`
 `nor` and `nand` are inverses of `or` and `and` respectively.
 
 an example can be found in tests/alias/
+
+## Alias namespacing
+
+f you change gamestate and need alot of new keybinds, it can get annoying to have to un-alias and re-alias everything  
+but with Alias namespacing it is possible to have multiple Alias setups at the same time, with only one of the active at any time
+
+to activate a different namespace from the currently active one you can call `LoveKeys.SetAliasNamespace`
+
+when defining Aliases they will by default be set for the currently active namespace, but this can be overridden using the fourth argument
+
+```lua
+function love.load()
+	LoveKeys.SetAliasNamespace("The_B_Namespace")
+	LoveKeys.Alias("a", "AAA", nil, "The_A_Namespace")
+	LoveKeys.Alias("b", "BBB",) -- will be defined for currently active namespace, which is: The_B_Namespace
+end
+```
+
+the default active namespace is `"default"`
+
+## Accesing information about keys, advanced mode
+
+i will just dump the format of the table you get from `LoveKeys.Get()` here
+
+```lua
+KeyInfo = {
+	Pressed = true/false,
+	Released = true/false,
+	Held = true/false,
+	PressLength = number,
+	Repeating = true/false,
+	Repeat = {
+		Repeat = number, --how long between each repeat
+		Delay = number --how long before it starts repeating, once this time is reached another keypress event happens
+	},
+	Alias = {
+		[namespace_name1] = {
+			To = Array_Of_Key_Names,
+			From = Array_Of_Key_Names,
+			Type = string --valid things are: or, and, nor, nand
+		}
+		[namespace_name2] = ...
+		[...] = ...
+	}
+}
+```
+
+beware of accessing information in namespaces, they could be nil
