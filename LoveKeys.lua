@@ -241,7 +241,7 @@ KeysTable.Alias = function(From, To, Type)
 			table.insert(KeysTable.KeyInfo[Key].AliasTo, v)
 		end
 	end
-	for _,Key in pairs(To) do
+	for KeyName,Key in pairs(To) do
 		if LoveKeys.KeyInfo[Key] == nil then
 			LoveKeys.RegisterKey(Key)
 		end
@@ -268,6 +268,8 @@ KeysTable.Alias = function(From, To, Type)
 		end
 		KeysTable.KeyInfo[Key].AliasFrom = From
 		KeysTable.KeyInfo[Key].AliasType = Type
+		local ToAliasPress, ToAliasUnpress = KeysTable.GetSingleKeyAliasUpdateInfo(KeysTable.KeyInfo[Key])
+		KeysTable.ExecuteAliasKeyUpdate(Key, ToAliasPress, ToAliasUnpress)
 	end
 end
 
