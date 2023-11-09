@@ -1,6 +1,7 @@
 # LoveKeys
 a library to track the current state of key presses in Love2D
 
+this library has moved away from github and can be found here instead: https://git.ptrc.gay/SpaceCat-Chan/lovekeys
 
 ## how to use:
 there is a simple example in tests/basic
